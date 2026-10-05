@@ -524,8 +524,8 @@ Enables external autonomous agents, CLIs, and integrations to interact with Plan
 - **Agent Endpoints:**
   - `GET /api/agent/items` (filter by type, status, projectId, limit, cursor)
   - `POST /api/agent/items` (create new notes, tasks, or ideas)
-  - `PATCH /api/agent/items/:id` (update status, body, or kanban column)
-  - `DELETE /api/agent/items/:id` (soft-delete item)
+  - `PATCH /api/agent/items?id=<id>` (update status, body, or kanban column; `id` also accepted in JSON body — endpoint paths are exact-match, see §15)
+  - `DELETE /api/agent/items?id=<id>` (soft-delete item; `id` also accepted in JSON body)
   - `POST /api/agent/ai/triage` (trigger AI categorization on inbox items)
 
 ---
@@ -737,12 +737,12 @@ npx lakebed deploy
 
 | Phase | Spec section | Code status today |
 |---|---|---|
-| Phase 0: Starter | §3, §14 | DONE — `todos` table, `todos` query, `addTodo`, `GET /api/status` |
-| Phase 1: Primitives | §4 (items/projects), §5.1, §9.1 | NOT STARTED — replace `todos` with `items` + `projects` |
-| Phase 2: Personal engine | §5.2–5.4, §11 | NOT STARTED |
-| Phase 3: Boards & teams | §6, §7, §9.2 | NOT STARTED |
-| Phase 4: AI engine | §8 (+ `shared/jev.ts`, `shared/ai.ts`) | NOT STARTED — Jev first, OpenRouter behind claimed deploy only |
-| Phase 5: External & mobile | §9.3, §10 | NOT STARTED — Android lives outside this capsule |
+| Phase 0: Starter | §3, §14 | SUPERSEDED 2026-10-05 — `todos` removed, replaced by §4 tables |
+| Phase 1: Primitives | §4 (items/projects), §5.1, §9.1 | DONE 2026-10-05 — `items` + `projects` (+`checkins`, `summaries` for habits/rollups) live, `todos` removed; deviations: `createdAt` dropped (Lakebed reserves it as implicit metadata), app timestamp renamed `updatedAt`→`mtime` (Lakebed reserves `updatedAt`), index `by_owner_updated` keys `["ownerId","mtime"]` |
+| Phase 2: Personal engine | §5.2–5.4, §11 | DONE 2026-10-05 — Today (`today` query, ≤3 indexed reads), goals tree + `summaries` rollups, habits `checkin_toggle` with `dayKey` idempotency, routes `/`, `/dump`, `/notes`, `/goals`, `/habits` |
+| Phase 3: Boards & teams | §6, §7, §9.2 | DONE 2026-10-05 — kanban `card_move` midpoint + `1e-4` rebalance, `/boards/:projectId`, teams/invites mutations + `/teams/:teamId` + `/join`, split-view `?left=&right=` via `URLSearchParams` merge |
+| Phase 4: AI engine | §8 (+ `shared/jev.ts`, `shared/ai.ts`) | DONE (Jev-only) 2026-10-05 — `routeCapture`/`extractTasks`/day-plan fallback, zero outbound `fetch`; OpenRouter still behind claimed deploy only (not wired) |
+| Phase 5: External & mobile | §9.3, §10 | DONE 2026-10-05 — `agentTokens` + full agent CRUD (`GET`/`POST`/`PATCH`/`DELETE /api/agent/items`, `POST /api/agent/ai/triage`) + `/api/sync/push|pull` (LWW, tombstones) live; cursor pagination on `items_list` + agent list (`{rows,nextCursor}`, cursor filters `by_owner_updated`, helpers in `shared/pagination.ts` unit-tested); Android Room client still outside capsule per spec (non-goal §16.2); deviations: Lakebed endpoint paths are exact-match (no `:id` segments — `PATCH`/`DELETE` take `id` via `?id=` or JSON body), filtered-list cursors slice in memory (unfiltered cursor pushes `lt/eq` range into `by_owner_updated`) |
 
 Rule: each phase PR must flip its row to DONE and note deviations here. Spec text wins over stale code, code wins as proof of what runs.
 
